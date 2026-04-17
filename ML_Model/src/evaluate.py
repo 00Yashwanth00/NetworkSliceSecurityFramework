@@ -7,7 +7,7 @@ from sklearn.metrics import classification_report, confusion_matrix, accuracy_sc
 from sklearn.metrics import mean_squared_error
 
 # Define paths
-DATA_DIR = '/home/yashwanth-r/Capstone/ML_Model/data/raw/5G_SatoriDataset/'
+DATA_DIR = '/home/yashwanth-r/Capstone/NetworkSliceSecurityFramework/ML_Model/data/raw/5G_SatoriDataset/'
 MODELS_DIR = './models/saved_models/'
 SCALERS_DIR = './models/scalers/'
 

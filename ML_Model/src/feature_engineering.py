@@ -2,12 +2,15 @@ import pandas as pd
 import numpy as np
 import os
 import joblib
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 
 # Define your paths (Updated to match your terminal output)
-DATA_DIR = '/home/yashwanth-r/Capstone/ML_Model/data/raw/5G_SatoriDataset/'
+DATA_DIR = '/home/yashwanth-r/Capstone/NetworkSliceSecurityFramework/ML_Model/data/raw/5G_SatoriDataset/'
 PROCESSED_DIR = './data/processed/'
 MODELS_DIR = './models/scalers/'
+PLOTS_DIR = './models/plots/' # Directory to save the heatmaps
 
 def process_slice_data(slice_name, correlation_threshold=0.90):
     print(f"\n--- Processing {slice_name} ---")
@@ -78,6 +81,22 @@ def process_slice_data(slice_name, correlation_threshold=0.90):
     
     print("Calculating correlation matrix...")
     corr_matrix = X.corr().abs()
+    
+    # --- NEW VISUALIZATION LOGIC START ---
+    print("Generating correlation heatmap image...")
+    os.makedirs(PLOTS_DIR, exist_ok=True)
+    plt.figure(figsize=(16, 12)) # Large figure size to fit all feature names
+    # cmap='coolwarm' makes high correlations red and low correlations blue
+    sns.heatmap(corr_matrix, cmap='coolwarm')
+    plt.title(f"{slice_name} Feature Correlation Matrix (Pre-Drop)", fontsize=16)
+    plt.tight_layout()
+    
+    plot_path = os.path.join(PLOTS_DIR, f"{slice_name}_correlation_matrix.png")
+    plt.savefig(plot_path, dpi=300) # Save in high resolution (300 dpi) for reports
+    plt.close()
+    print(f"Saved heatmap to: {plot_path}")
+    # --- NEW VISUALIZATION LOGIC END ---
+
     upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
     
     to_drop_corr = [column for column in upper.columns if any(upper[column] > correlation_threshold)]
@@ -102,6 +121,16 @@ def process_slice_data(slice_name, correlation_threshold=0.90):
     joblib.dump(scaler, scaler_path)
     print(f"Saved processed data to {processed_path}")
     print(f"Saved scaler to {scaler_path}")
+
+    # --- PRINT FINAL FEATURES FOR SCREENSHOT ---
+    print(f"\n[FINAL SELECTED FEATURES FOR {slice_name}]:")
+    selected_features = X.columns.tolist()
+    # Print them in a clean, numbered column format
+    for i in range(0, len(selected_features), 2):
+        col1 = f"{i+1}. {selected_features[i]}"
+        col2 = f"{i+2}. {selected_features[i+1]}" if i+1 < len(selected_features) else ""
+        print(f"{col1:<40} {col2}")
+    print("-" * 60 + "\n")
 
 if __name__ == "__main__":
     slices = ['eMBB', 'URLLC', 'mMTC']
