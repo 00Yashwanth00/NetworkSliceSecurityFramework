@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.pes.agent.collection.ApiCollector;
 import edu.pes.agent.collection.LogTailerListener;
 import edu.pes.agent.collection.MetricsSource;
+import edu.pes.agent.kafka.TelemetryProducer;
 import edu.pes.agent.model.TelemetryEvent;
 import edu.pes.agent.util.MockOpen5gsServer;
 import org.apache.commons.io.input.Tailer;
@@ -76,6 +77,8 @@ public class AgentApp {
             MetricsSource metricsSource = new MetricsSource();
             ObjectMapper mapper = new ObjectMapper();
 
+            TelemetryProducer kafkaProducer = new TelemetryProducer("192.168.1.XX:9092", "5g-telemetry");
+
             // 2. Start Log Monitoring in background [cite: 453]
             // For lab: point to /var/log/open5gs/amf.log
             System.out.println("Starting Log Monitoring...");
@@ -100,6 +103,9 @@ public class AgentApp {
                 event.labels = new TelemetryEvent.Labels();
                 event.labels.environment = "dev";
                 event.labels.severity = (double) event.metrics.get("cpu_usage_percent") > 80 ? "high" : "low";
+
+                kafkaProducer.sendEvent(event);
+                System.out.println("Event streamed to Orchestrator: " + event.eventId);
 
                 // Print the final structured JSON conforming to DataSchema.txt
                 System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(event));
