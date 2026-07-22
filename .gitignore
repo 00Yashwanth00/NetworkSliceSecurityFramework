@@ -1,37 +1,64 @@
-# Exclude virtual environment
+# ===================================================================
+# Java / Maven (DataScraping)
+# ===================================================================
+target/
+*.class
+*.jar
+*.war
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.properties
+
+# ===================================================================
+# Python / ML (ML_Model)
+# ===================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.ipynb_checkpoints/
+
+# Virtual environments
 env/
-**/env/
+venv/
+.venv/
+ENV/
 
-# Java/Maven builds
-**/target/
-**/.classpath
-**/.project
-**/.settings/
-**/*.class
+# ===================================================================
+# ML artifacts — large/binary, regenerable from src/ + data
+# ===================================================================
+ML_Model/data/
+ML_Model/models/
 
-# Python cache
-**/__pycache__/
-**/*.pyc
-**/*.pyo
+# If you'd rather keep the processed CSVs tracked (they're small and
+# save re-running feature engineering), comment the line above out and
+# use these two instead:
+# ML_Model/data/raw/
+# ML_Model/models/saved_models/
+# ML_Model/models/scalers/
+# ML_Model/models/plots/
 
-# Data files (uncomment if you want to exclude all data)
-**/data/raw/
-**/*.csv 
-**/*.pkl
-# **/*.keras
-# **/*.json
-
-# Models
-**/models/saved_models/
-**/models/scalers/
-**/models/plots/
-
+# ===================================================================
 # IDE
-**/.idea/
-**/.vscode/
-**/*.iml
-**/.DS_Store
+# ===================================================================
+.idea/
+*.iml
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
 
-# Logs
-**/*.log
-**/*.tmp
+# ===================================================================
+# OS
+# ===================================================================
+.DS_Store
+Thumbs.db
+
+# ===================================================================
+# Logs / env secrets
+# ===================================================================
+*.log
+.env
+.env.local
