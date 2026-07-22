@@ -1,0 +1,20 @@
+5g-ml-engine/
+│
+├── data/
+│   ├── raw/                  # Drop the original 5G-SATORI dataset here
+│   └── processed/            # Scaled and slice-segregated data goes here
+│
+├── models/
+│   ├── saved_models/         # Exported .pkl or .h5 models (Isolation Forest, LSTM)
+│   └── scalers/              # Saved StandardScaler objects (crucial for inference)
+│
+├── src/
+│   ├── __init__.py
+│   ├── data_ingestion.py     # Script to load, clean, and split the SATORI data
+│   ├── feature_engineering.py# Script for correlation and dimensionality reduction
+│   ├── train_isolation.py    # Training script for Isolation Forest / One-Class SVM
+│   ├── train_lstm.py         # Training script for the time-series LSTM
+│   └── risk_scorer.py        # Logic combining model outputs into the final Risk Score
+│
+├── requirements.txt          # pandas, scikit-learn, tensorflow, xgboost, etc.
+└── main.py                   # Main execution script to run the pipeline

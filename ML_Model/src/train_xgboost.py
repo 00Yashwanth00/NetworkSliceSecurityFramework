@@ -7,7 +7,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix
 
 # Define paths
-DATA_DIR = '/home/yashwanth-r/Capstone/ML_Model/data/raw/5G_SatoriDataset/'
+DATA_DIR = './data/raw/5G_SatoriDataset/'
 MODELS_DIR = './models/saved_models/'
 
 def train_xgboost_slice(slice_name):

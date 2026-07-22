@@ -1,4 +1,37 @@
+# Exclude virtual environment
 env/
-data/
-*.txt
-*.log
+**/env/
+
+# Java/Maven builds
+**/target/
+**/.classpath
+**/.project
+**/.settings/
+**/*.class
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+
+# Data files (uncomment if you want to exclude all data)
+# **/data/raw/
+# **/*.csv
+# **/*.pkl
+# **/*.keras
+# **/*.json
+
+# Models
+**/models/saved_models/
+**/models/scalers/
+**/models/plots/
+
+# IDE
+**/.idea/
+**/.vscode/
+**/*.iml
+**/.DS_Store
+
+# Logs
+**/*.log
+**/*.tmp

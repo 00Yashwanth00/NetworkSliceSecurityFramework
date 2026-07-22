@@ -95,9 +95,9 @@ class SecurityOrchestrator:
         print(f">> COMBINED ZERO-DAY RISK SCORE: {total_risk_score:.1f}/100")
 
         # Decide Action based on Zero-Day score
-        if total_risk_score < 40:
+        if total_risk_score < 30:
             self._execute_policy(action_level="NONE", reason="Traffic within normal baseline")
-        elif 40 <= total_risk_score < 80:
+        elif 30 <= total_risk_score < 80:
             self._execute_policy(action_level="PROACTIVE", reason="Anomalous behavior detected (Possible Zero-Day)")
         else:
             self._execute_policy(action_level="REACTIVE", reason="Severe baseline breach detected")

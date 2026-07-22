@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5G Security Orchestrator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .dashboard {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            width: 450px;
+        }
+        h2 {
+            text-align: center;
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        .control-group {
+            margin-bottom: 20px;
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 8px;
+        }
+        select, input[type="range"] {
+            width: 100%;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+        .val-display {
+            float: right;
+            color: #007bff;
+            font-weight: bold;
+        }
+        .results {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            background-color: #e9ecef;
+            transition: all 0.3s ease;
+        }
+        .score-box {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .action-box {
+            font-size: 1.2rem;
+            font-weight: bold;
+            padding: 10px;
+            border-radius: 6px;
+            color: white;
+            background-color: #6c757d;
+        }
+        
+        /* Dynamic Action Colors */
+        .bg-none { background-color: #28a745; }
+        .bg-proactive { background-color: #ffc107; color: #212529;}
+        .bg-reactive { background-color: #dc3545; }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <h2>Dynamic Risk Orchestrator</h2>
+    
+    <div class="control-group">
+        <label for="sliceSelect">Network Slice (Sets Baseline)</label>
+        <select id="sliceSelect">
+            <option value="0.9177">eMBB (Threshold: 0.9177)</option>
+            <option value="2.8485">URLLC (Threshold: 2.8485)</option>
+            <option value="1.1438">mMTC (Threshold: 1.1438)</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label>SVM Anomaly Ratio (%) <span id="svmVal" class="val-display">0</span></label>
+        <input type="range" id="svmSlider" min="0" max="100" value="0">
+    </div>
+
+    <div class="control-group">
+        <label>LSTM Reconstruction MSE <span id="lstmVal" class="val-display">0.0</span></label>
+        <input type="range" id="lstmSlider" min="0" max="10" step="0.1" value="0.0">
+    </div>
+
+    <div class="results">
+        <div>Unified Risk Score</div>
+        <div class="score-box" id="riskScore">0.0</div>
+        <div class="action-box bg-none" id="policyAction">ACTION: NONE (Monitor)</div>
+    </div>
+</div>
+
+<script>
+    const sliceSelect = document.getElementById('sliceSelect');
+    const svmSlider = document.getElementById('svmSlider');
+    const lstmSlider = document.getElementById('lstmSlider');
+    const svmVal = document.getElementById('svmVal');
+    const lstmVal = document.getElementById('lstmVal');
+    
+    const riskScoreEl = document.getElementById('riskScore');
+    const policyActionEl = document.getElementById('policyAction');
+
+    function calculateRisk() {
+        const threshold = parseFloat(sliceSelect.value);
+        const svm = parseFloat(svmSlider.value);
+        const mse = parseFloat(lstmSlider.value);
+
+        svmVal.textContent = svm;
+        lstmVal.textContent = mse.toFixed(1);
+
+        // Calculate LSTM Risk Percentage (Capped at 100)
+        let lstmRisk = (mse / threshold) * 100;
+        if (lstmRisk > 100) lstmRisk = 100;
+
+        // Weighted Average (30% SVM, 70% LSTM)
+        let totalRisk = (0.3 * svm) + (0.7 * lstmRisk);
+
+        riskScoreEl.textContent = totalRisk.toFixed(1);
+
+        // Apply Policy Rules
+        policyActionEl.className = "action-box"; // Reset classes
+        if (totalRisk < 30) {
+            policyActionEl.textContent = "ACTION: NONE (Monitor)";
+            policyActionEl.classList.add("bg-none");
+        } else if (totalRisk >= 30 && totalRisk < 80) {
+            policyActionEl.textContent = "ACTION: PROACTIVE (Rate Limit)";
+            policyActionEl.classList.add("bg-proactive");
+        } else {
+            policyActionEl.textContent = "ACTION: REACTIVE (Isolate Slice)";
+            policyActionEl.classList.add("bg-reactive");
+        }
+    }
+
+    // Add Event Listeners
+    sliceSelect.addEventListener('change', calculateRisk);
+    svmSlider.addEventListener('input', calculateRisk);
+    lstmSlider.addEventListener('input', calculateRisk);
+
+    // Initial Calculation
+    calculateRisk();
+</script>
+
+</body>
+</html>
