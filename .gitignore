@@ -15,9 +15,9 @@ env/
 **/*.pyo
 
 # Data files (uncomment if you want to exclude all data)
-# **/data/raw/
-# **/*.csv
-# **/*.pkl
+**/data/raw/
+**/*.csv 
+**/*.pkl
 # **/*.keras
 # **/*.json
 
