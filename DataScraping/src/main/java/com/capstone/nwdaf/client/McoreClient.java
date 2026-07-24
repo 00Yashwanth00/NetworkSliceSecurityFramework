@@ -10,7 +10,11 @@ public class McoreClient {
     private final String baseUrl;
 
     public McoreClient() {
-        this.baseUrl = AppConfig.CORE_BASE_URL;
+        this(AppConfig.CORE_BASE_URL);
+    }
+
+    public McoreClient(String baseUrl) {
+        this.baseUrl = baseUrl;
     }
 
     public JSONObject getBenchmarkResults() throws Exception {

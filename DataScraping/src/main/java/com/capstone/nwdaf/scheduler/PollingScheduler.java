@@ -34,29 +34,31 @@ public class PollingScheduler {
         executor.shutdownNow();
     }
 
-    private void pollCycle() {
-        cycleCount++;
+    public void runOnePushCycle() throws Exception {
         long nowEpochSec = System.currentTimeMillis() / 1000L;
 
+        JSONObject benchmark = mcoreClient.getBenchmarkResults();
+        Object sliceStats = mcoreClient.getSliceStats();
+        JSONObject ioStats = mcoreClient.getIoStats();
+        Object ueStats = mcoreClient.getUeStats();
+
+        push("AMF", "NF_LOAD", DataReshaper.buildNfLoad(benchmark), nowEpochSec);
+        push("AMF", "ABNORMAL_BEHAVIOUR", DataReshaper.buildAbnormalBehaviour(benchmark), nowEpochSec);
+        push("AMF", "UE_MOBILITY", DataReshaper.buildUeMobility(ueStats), nowEpochSec);
+        push("SMF", "UE_COMMUNICATION", DataReshaper.buildPduSession(ueStats), nowEpochSec);
+        push("SMF", "PDU_SESSION", DataReshaper.buildPduSession(ueStats), nowEpochSec);
+        push("UPF", "QOS_SUSTAINABILITY", DataReshaper.buildQosSustainability(ioStats, AppConfig.UL_IS_TX), nowEpochSec);
+        push("SMF", "SLICE_LOAD", DataReshaper.buildSliceLoad(sliceStats), nowEpochSec);
+    }
+
+    private void pollCycle() {
+        cycleCount++;
         try {
-            JSONObject benchmark = mcoreClient.getBenchmarkResults();
-            Object sliceStats = mcoreClient.getSliceStats();
-            JSONObject ioStats = mcoreClient.getIoStats();
-            Object ueStats = mcoreClient.getUeStats();
-
-            push("AMF", "NF_LOAD", DataReshaper.buildNfLoad(benchmark), nowEpochSec);
-            push("AMF", "ABNORMAL_BEHAVIOUR", DataReshaper.buildAbnormalBehaviour(benchmark), nowEpochSec);
-            push("AMF", "UE_MOBILITY", DataReshaper.buildUeMobility(ueStats), nowEpochSec);
-            push("SMF", "UE_COMMUNICATION", DataReshaper.buildPduSession(ueStats), nowEpochSec);
-            push("SMF", "PDU_SESSION", DataReshaper.buildPduSession(ueStats), nowEpochSec);
-            push("UPF", "QOS_SUSTAINABILITY", DataReshaper.buildQosSustainability(ioStats, AppConfig.UL_IS_TX), nowEpochSec);
-            push("SMF", "SLICE_LOAD", DataReshaper.buildSliceLoad(sliceStats), nowEpochSec);
-
+            runOnePushCycle();
             log.info("Cycle " + cycleCount + ": polled 4 endpoints, pushed 7 analytics IDs.");
         } catch (Exception e) {
             log.severe("Poll cycle " + cycleCount + " failed while fetching from mmt-studio: " + e.getMessage());
         }
-
         if (cycleCount % AppConfig.READBACK_EVERY_N_CYCLES == 0) {
             readBackAndVerify();
         }

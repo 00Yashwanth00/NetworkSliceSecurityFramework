@@ -9,20 +9,32 @@ public class NwdafClient {
     private final String baseUrl;
 
     public NwdafClient() {
-        this.baseUrl = AppConfig.CORE_BASE_URL;
+        this(AppConfig.CORE_BASE_URL);
     }
 
-    public JSONObject pushDataPoint(String sourceNf, String analyticsId, String imsi, String dnn, String dataJsonString, long collectedAtEpochSec) throws Exception {
+    /** Testable / Stage 6a constructor — point at any host, e.g. a dead port. */
+    public NwdafClient(String baseUrl) {
+        this.baseUrl = baseUrl;
+    }
+
+    public JSONObject pushDataPoint(String sourceNf, String analyticsId, String imsi, String dnn,
+                                    String dataJsonString, long collectedAtEpochSec) throws Exception {
+        JSONObject body = buildEnvelope(sourceNf, analyticsId, imsi, dnn, dataJsonString, collectedAtEpochSec);
+        String response = HttpUtil.postJson(baseUrl + "/api/nwdaf/data", body.toString());
+        return new JSONObject(response);
+    }
+
+    /** Package-visible so tests can check the envelope shape without a network call. */
+    JSONObject buildEnvelope(String sourceNf, String analyticsId, String imsi, String dnn,
+                             String dataJsonString, long collectedAtEpochSec) {
         JSONObject body = new JSONObject();
         body.put("source_nf", sourceNf);
         body.put("analytics_id", analyticsId);
         body.put("imsi", imsi == null ? "" : imsi);
         body.put("dnn", dnn == null ? "" : dnn);
-        body.put("data_json", dataJsonString);
+        body.put("data_json", dataJsonString); // string, not nested object — §4.1
         body.put("collected_at", collectedAtEpochSec);
-
-        String response = HttpUtil.postJson(baseUrl + "/api/nwdaf/data", body.toString());
-        return new JSONObject(response);
+        return body;
     }
 
     public JSONObject getAnalytics(String analyticsId, int windowSec) throws Exception {

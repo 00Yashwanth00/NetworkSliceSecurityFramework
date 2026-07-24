@@ -13,7 +13,8 @@ public final class DataReshaper {
     }
 
     public static String buildNfLoad(JSONObject benchmarkResults) {
-        JSONObject counters = benchmarkResults.optJSONObject("counters", new JSONObject());
+        requireCounters(benchmarkResults, "buildNfLoad");
+        JSONObject counters = benchmarkResults.getJSONObject("counters");
 
         JSONObject pmCounters = new JSONObject();
         pmCounters.put("RM.RegAtt", counters.optLong("RM.RegAtt", 0));
@@ -25,7 +26,8 @@ public final class DataReshaper {
     }
 
     public static String buildAbnormalBehaviour(JSONObject benchmarkResults) {
-        JSONObject counters = benchmarkResults.optJSONObject("counters", new JSONObject());
+        requireCounters(benchmarkResults, "buildAbnormalBehaviour");
+        JSONObject counters = benchmarkResults.getJSONObject("counters");
 
         JSONObject pmCounters = new JSONObject();
         pmCounters.put("AUTH.Fail", counters.optLong("AUTH.Fail", 0));
@@ -94,6 +96,14 @@ public final class DataReshaper {
     }
 
     public static String buildQosSustainability(JSONObject ioStats, boolean ulIsTx) {
+        boolean hasAnyKnownField = ioStats.has("ul_pkts") || ioStats.has("dl_pkts")
+                || ioStats.has("ul_bytes") || ioStats.has("dl_bytes");
+        if (!hasAnyKnownField) {
+            throw new IllegalArgumentException(
+                    "buildQosSustainability: io-stats response has none of the known counter fields "
+                            + "(ul_pkts/dl_pkts/ul_bytes/dl_bytes) — this looks malformed, refusing to push all-zero data.");
+        }
+
         long ulPkts = ioStats.optLong("ul_pkts", 0);
         long dlPkts = ioStats.optLong("dl_pkts", 0);
         long ulBytes = ioStats.optLong("ul_bytes", 0);
@@ -156,4 +166,14 @@ public final class DataReshaper {
         }
         return null;
     }
+
+    private static void requireCounters(JSONObject benchmarkResults, String methodName) {
+        if (!benchmarkResults.has("counters")) {
+            throw new IllegalArgumentException(
+                    methodName + ": benchmarkResults is missing the \"counters\" key entirely — "
+                            + "this looks like a malformed /api/benchmark/results response, refusing to push zeros.");
+        }
+    }
+
+
 }
