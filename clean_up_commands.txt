@@ -1,0 +1,2 @@
+sudo find /var/lib/docker/volumes/orchestrate_satester_data/_data/test_results   -type f -delete
+sudo rm -rf /tmp/mmt-test-pcap.*

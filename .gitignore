@@ -1,0 +1,194 @@
+# ============================================================
+# NetworkSliceSecurityFramework - Root .gitignore
+# ============================================================
+
+# ------------------------------------------------------------
+# 1. Operating system and editor files
+# ------------------------------------------------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+*~
+*.swp
+*.swo
+*.bak
+.~lock.*#
+
+# ------------------------------------------------------------
+# 2. Git and IDE files
+# ------------------------------------------------------------
+# Local IDE settings
+.idea/
+.vscode/
+
+# ------------------------------------------------------------
+# 3. Python virtual environments
+# ------------------------------------------------------------
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# ------------------------------------------------------------
+# 4. Python cache and generated files
+# ------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Python packaging
+.Python
+pip-wheel-metadata/
+wheels/
+share/python-wheels/
+
+# Testing and linting caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ------------------------------------------------------------
+# 5. Environment variables and secrets
+# ------------------------------------------------------------
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Local credentials
+credentials.json
+secrets.json
+
+# ------------------------------------------------------------
+# 6. Logs, temporary files and runtime artifacts
+# ------------------------------------------------------------
+*.log
+*.tmp
+*.temp
+*.pid
+*.seed
+*.out
+
+# ------------------------------------------------------------
+# 7. Node.js / React dashboard
+# ------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Frontend build output
+/attack-monitor-dashboard/build/
+/attack-monitor-dashboard/dist/
+/attack-monitor-dashboard/coverage/
+/attack-monitor-dashboard/.next/
+
+# Local environment files
+/attack-monitor-dashboard/.env
+/attack-monitor-dashboard/.env.local
+/attack-monitor-dashboard/.env.development.local
+/attack-monitor-dashboard/.env.test.local
+/attack-monitor-dashboard/.env.production.local
+
+# ------------------------------------------------------------
+# 8. Java / Maven data collector
+# ------------------------------------------------------------
+**/target/
+**/out/
+*.class
+
+# Maven wrapper cache and local build output
+.mvn/timing.properties
+
+# ------------------------------------------------------------
+# 9. Generated telemetry data
+# ------------------------------------------------------------
+# Collected CSV datasets
+/data-collector/collected-data/*.csv
+
+# Temporary spreadsheet lock files
+/data-collector/collected-data/.~lock.*#
+
+# Collection metadata is retained by default.
+# Uncomment the following if it contains only generated metadata:
+# /data-collector/collected-data/collection_meta.json
+
+# ------------------------------------------------------------
+# 10. Packet collector datasets
+# ------------------------------------------------------------
+# Generated packet/flow datasets
+/packet-collector/*.csv
+
+# Packet captures
+/packet-collector/*.pcap
+/packet-collector/*.pcapng
+/packet-collector/pcaps/
+
+# ------------------------------------------------------------
+# 11. Processed machine-learning datasets
+# ------------------------------------------------------------
+/ml-engine/processed_line1_network/*.csv
+/ml-engine/processed_line1_packet/*.csv
+/ml-engine/processed_line2_network/*.csv
+/ml-engine/processed_line2_packet/*.csv
+
+# ------------------------------------------------------------
+# 12. Generated model training artifacts
+# ------------------------------------------------------------
+# Training logs and evaluation reports
+/ml-engine/model_line1_network/training_results.json
+/ml-engine/model_line1_packet/training_results.json
+/ml-engine/model_line2_network/training_results.json
+/ml-engine/model_line2_packet/training_results.json
+
+# ------------------------------------------------------------
+# 13. Generated reports
+# ------------------------------------------------------------
+reports/
+report/
+*.report
+*.junit.xml
+
+# ------------------------------------------------------------
+# 14. Archives and compressed backups
+# ------------------------------------------------------------
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# ------------------------------------------------------------
+# 15. Build output and dependency directories
+# ------------------------------------------------------------
+**/node_modules/
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/htmlcov/
+
+# ------------------------------------------------------------
+# End of .gitignore
+# ------------------------------------------------------------
+

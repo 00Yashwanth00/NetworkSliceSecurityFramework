@@ -1,0 +1,3 @@
+packet collector : sudo $(which python3) packet_collector_live.py --interface lo --redis-host localhost --stream telemetry.packet
+
+data collector : java -jar target/data-collector-1.0-SNAPSHOT.jar

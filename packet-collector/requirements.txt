@@ -1,0 +1,4 @@
+requests==2.31.0
+pandas==2.2.2
+cicflowmeter==0.5.0
+redis>=5.0.0
