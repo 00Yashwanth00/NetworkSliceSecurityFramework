@@ -1,8 +1,8 @@
 {
   "sessionLabel" : "normal",
   "startTime" : "2026-10-29T06:16:21.233Z",
-  "lastUpdate" : "2026-10-29T06:46:21.916594086Z",
+  "lastUpdate" : "2026-10-29T06:47:30.915923258Z",
   "intervalSeconds" : 3,
   "coreBaseUrl" : "http://localhost:5000",
-  "totalSamplesWritten" : 607
+  "totalSamplesWritten" : 630
 }
