@@ -9,13 +9,22 @@ code changes required.
 
     Strategy 1  IP quarantine              POST /api/security/blocked-ips/ttl
     Strategy 2  Rate limiting (sliding      POST /api/security/ids/test
-                window, auto-block)         (signature registered once via
-                                             setup_ids_signature.py)
+                window, auto-block)         (signature ML_PIPELINE_ATTACK,
+                                             auto-registered by this module)
     Strategy 3  Repeat-offender escalation  same blocked-ips/ttl call, with a
                                              TTL escalated via a counter kept
                                              in our own Redis (not mmt-core)
     Strategy 4  Audit/dashboard sync        POST /api/security/audit
                 (always-succeeds fallback)
+
+Score bands (final_score -> action), after the 0.05 downward shift:
+
+    <  0.45          NORMAL (decided in inference_service.py, no mitigation)
+    0.45 - 0.55      ATTACK, audit-only (strategy 4)
+    0.55 - 0.65      + quarantine 5 min (floor) + rate-limit signal
+    0.65 - 0.80      + quarantine 1 hour        + rate-limit signal
+    >= 0.80          + quarantine permanent     + rate-limit signal
+    (strategy 3 can lengthen any quarantine for repeat offenders)
 
 Design contract: every call to sacore-web is best-effort. If sacore-web is
 unreachable, slow, or returns an error, we log it, mark the action as
@@ -24,10 +33,19 @@ inference pipeline must never stall or crash because a mitigation call
 failed. Every outcome -- applied or recommended-only -- is written to the
 `mitigation:events` Redis stream so mitigation_dashboard.py can render the
 full picture even when sacore-web was down for the whole session.
+
+IDS signature note: the SA Tester calls POST /api/admin/drop-db-data on every
+test entry, which wipes security_ids_signatures. mmt-core's /ids/test endpoint
+answers 200 {"detected": false} even when the signature does not exist, so a
+bare HTTP 200 proves nothing. This module therefore (a) verifies the
+signature exists before counting a rate-limit action as applied, (b)
+re-registers it if missing, and (c) offers keep_signature_registered(), a
+background loop that restores it within seconds of a wipe.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -51,31 +69,43 @@ REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
 # Strategy 1 -- direct quarantine tiers: (min final_score, ttl_seconds).
 # Checked highest-threshold-first; ttl_s=0 means permanent (matches
 # mmt-core's own BlockIPWithTTL convention). The last entry is the floor --
-# ANY verdict=="ATTACK" gets at least this TTL, even if final_score sits
-# below 0.5 (possible when Line 2 flags an ATTACK on a blended score that
-# landed under the fusion boundary).
+# any verdict that passes the quarantine gate gets at least this TTL.
 QUARANTINE_TIERS = [
-    (0.85, 0),       # >= 0.85  -> permanent
-    (0.70, 3600),    # >= 0.70  -> 1 hour
+    (0.80, 0),       # >= 0.80  -> permanent
+    (0.65, 3600),    # >= 0.65  -> 1 hour
     (0.0, 300),      # floor    -> 5 minutes
 ]
 
-# Strategy 2 -- the IDS signature setup_ids_signature.py registers once.
-# Must match SIGNATURE["name"] in that script.
+# Strategy 2 -- the IDS signature this module keeps registered in mmt-core.
 IDS_SIGNATURE_NAME = "ML_PIPELINE_ATTACK"
 
-# Shared gate for strategies 1 + 2: only quarantine AND feed the rate
-# limiter when final_score is at least this confident. Below it, an ATTACK
-# verdict still gets strategy 4 (audit sync) -- so it's never silently
-# dropped -- but doesn't trigger a block or an IDS signal. This exists so a
-# single borderline verdict (e.g. 0.51) doesn't immediately escalate the
-# same way a high-confidence one (e.g. 0.90) does.
-# Default sits a bit above the bare NORMAL/ATTACK floor (0.5, set by
-# inference_service.py's ATTACK_SCORE_THRESHOLD) rather than at it, so only
-# verdicts the model is reasonably confident about get the aggressive
-# response. Tune with RATE_LIMIT_SCORE_THRESHOLD; set to 0.0 to restore the
-# previous behavior (every ATTACK verdict with a src_ip gets both).
-RATE_LIMIT_SCORE_THRESHOLD = float(os.environ.get("RATE_LIMIT_SCORE_THRESHOLD", "0.6"))
+# Registered (or re-registered) whenever it is found missing. Trips when one
+# source IP sends `threshold` signals within `window_s`; on a trip mmt-core
+# also blocks the IP for `auto_block_ttl_s`. The name must equal
+# IDS_SIGNATURE_NAME and `enabled` must be True (omitted = disabled).
+IDS_SIGNATURE_SPEC = {
+    "name": IDS_SIGNATURE_NAME,
+    "pattern": IDS_SIGNATURE_NAME,
+    "severity": "CRITICAL",
+    "threshold": 3,
+    "window_s": 60,
+    "enabled": True,
+    "auto_block_ttl_s": 600,
+}
+
+# How long a successful "signature exists" check is trusted before asking
+# mmt-core again. Kept short so a tester wipe leaves only a brief blind spot.
+SIGNATURE_CHECK_TTL_S = 5.0
+
+# Gates for strategies 1 and 2. Below BOTH gates an ATTACK verdict still gets
+# strategy 4 (audit sync) -- so it's never silently dropped -- but triggers no
+# block and no IDS signal. Both default to 0.55 (the old 0.6 shifted down by
+# 0.05). They are separate so quarantine can be tuned independently, e.g.
+#   QUARANTINE_SCORE_THRESHOLD=0.6 RATE_LIMIT_SCORE_THRESHOLD=0.45
+# Set a gate to 0.0 to apply that strategy to every ATTACK verdict with a
+# src_ip.
+RATE_LIMIT_SCORE_THRESHOLD = float(os.environ.get("RATE_LIMIT_SCORE_THRESHOLD", "0.55"))
+QUARANTINE_SCORE_THRESHOLD = float(os.environ.get("QUARANTINE_SCORE_THRESHOLD", "0.55"))
 
 # Strategy 3 -- repeat-offender escalation ladder, keyed on offense count
 # within ESCALATION_WINDOW_S (tracked in OUR Redis, independent of
@@ -117,6 +147,8 @@ class MitigationEngine:
             host=REDIS_HOST, port=REDIS_PORT, decode_responses=True
         )
         self._client = httpx.AsyncClient(base_url=SACORE_URL, timeout=HTTP_TIMEOUT)
+        # monotonic timestamp of the last successful signature check
+        self._sig_cache: Optional[float] = None
 
     async def close(self):
         await self._client.aclose()
@@ -146,21 +178,26 @@ class MitigationEngine:
                         f"session={session_key!r} -- investigate session "
                         f"manually (score={final_score:.3f})"),
             ))
-        elif final_score >= RATE_LIMIT_SCORE_THRESHOLD:
-            outcomes.append(await self._strategy_quarantine(src_ip, final_score, session_key))
-            outcomes.append(await self._strategy_rate_limit(src_ip, final_score, session_key, details))
         else:
-            # Below the gate: ATTACK verdict, real src_ip, but not
-            # confident enough to block or rate-limit yet. No outcome row
-            # here -- strategy 4 below records why, so this never shows up
-            # looking like a dropped/failed action (it's a deliberate skip,
-            # not a failure, and must not be confused with the RECOMMENDED
-            # state that specifically means "mmt-core was unreachable").
-            logger.info(
-                "[mitigation] %s: score %.3f below RATE_LIMIT_SCORE_THRESHOLD (%.2f) -- "
-                "skipping quarantine + rate limit, audit-only",
-                src_ip, final_score, RATE_LIMIT_SCORE_THRESHOLD,
-            )
+            # Order is fixed: quarantine (1, with 3 folded in) -> rate limit (2).
+            if final_score >= QUARANTINE_SCORE_THRESHOLD:
+                outcomes.append(await self._strategy_quarantine(src_ip, final_score, session_key))
+            if final_score >= RATE_LIMIT_SCORE_THRESHOLD:
+                outcomes.append(await self._strategy_rate_limit(src_ip, final_score, session_key, details))
+
+            if not outcomes:
+                # Below both gates: ATTACK verdict with a real src_ip, but not
+                # confident enough to block or rate-limit yet. No outcome row
+                # here -- strategy 4 below records why, so this never shows up
+                # looking like a dropped/failed action (it's a deliberate skip,
+                # not a failure, and must not be confused with the RECOMMENDED
+                # state that specifically means "mmt-core was unreachable").
+                logger.info(
+                    "[mitigation] %s: score %.3f below gates (quarantine %.2f, "
+                    "rate-limit %.2f) -- audit-only",
+                    src_ip, final_score,
+                    QUARANTINE_SCORE_THRESHOLD, RATE_LIMIT_SCORE_THRESHOLD,
+                )
 
         # Strategy 4 always runs last and always produces a record, even if
         # the HTTP POST itself fails.
@@ -227,13 +264,74 @@ class MitigationEngine:
             )
 
     # ---------------------------------------------------------------
+    # IDS signature upkeep (needed by strategy 2)
+    # ---------------------------------------------------------------
+    async def _signature_registered(self) -> bool:
+        """True if ML_PIPELINE_ATTACK exists AND is enabled in mmt-core.
+        If it is missing (e.g. the tester's drop-db-data wiped it), register
+        it again and re-check. A successful check is trusted for
+        SIGNATURE_CHECK_TTL_S seconds; failures are never cached."""
+        now = time.monotonic()
+        if self._sig_cache is not None and now - self._sig_cache < SIGNATURE_CHECK_TTL_S:
+            return True
+
+        async def _exists() -> bool:
+            r = await self._client.get("/api/security/ids/signatures")
+            r.raise_for_status()
+            return any(
+                s.get("name") == IDS_SIGNATURE_NAME and s.get("enabled")
+                for s in r.json().get("signatures", [])
+            )
+
+        try:
+            if not await _exists():
+                logger.warning("[mitigation] %s missing in mmt-core -- registering it",
+                               IDS_SIGNATURE_NAME)
+                r = await self._client.post("/api/security/ids/signatures",
+                                            json=IDS_SIGNATURE_SPEC)
+                r.raise_for_status()
+                if not await _exists():
+                    logger.error("[mitigation] registered %s but it is still not "
+                                 "listed/enabled", IDS_SIGNATURE_NAME)
+                    self._sig_cache = None
+                    return False
+            self._sig_cache = now
+            return True
+        except Exception as e:
+            logger.error("[mitigation] signature check/register failed: %s", e)
+            self._sig_cache = None
+            return False
+
+    async def keep_signature_registered(self, interval: float = 10.0):
+        """Background loop: restores the signature within `interval` seconds of
+        a wipe, whether or not any attack is happening. Start it once from
+        inference_service.main() with asyncio.create_task(...)."""
+        while True:
+            try:
+                self._sig_cache = None          # force a real check
+                await self._signature_registered()
+            except Exception as e:              # never let the loop die
+                logger.error("[mitigation] keep_signature_registered error: %s", e)
+            await asyncio.sleep(interval)
+
+    # ---------------------------------------------------------------
     # Strategy 2: sliding-window rate limiting via mmt-core's IDS
-    # signature engine (threshold/window/auto-block set once, see
-    # setup_ids_signature.py)
+    # signature engine (threshold/window/auto-block come from
+    # IDS_SIGNATURE_SPEC)
     # ---------------------------------------------------------------
     async def _strategy_rate_limit(self, src_ip: str, final_score: float,
                                     session_key: str, details) -> MitigationOutcome:
         detail = f"ML ATTACK verdict score={final_score:.3f} session={session_key} details={details}"
+
+        # /ids/test returns 200 even when the signature does not exist, so
+        # verify first -- otherwise "applied" would be a false claim.
+        if not await self._signature_registered():
+            msg = (f"RECOMMENDED: signature '{IDS_SIGNATURE_NAME}' is not registered/enabled "
+                   f"in mmt-core, so no rate limiting happened for {src_ip}")
+            logger.error("[mitigation] %s", msg)
+            return MitigationOutcome(action=MitigationAction.RATE_LIMIT,
+                                      applied=False, detail=msg)
+
         try:
             resp = await self._client.post("/api/security/ids/test", json={
                 "event_type": IDS_SIGNATURE_NAME,
@@ -262,8 +360,10 @@ class MitigationEngine:
         if prior_outcomes:
             summary = "; ".join(o.detail for o in prior_outcomes)
         elif verdict_payload.get("src_ip"):
-            summary = (f"score {final_score:.3f} below RATE_LIMIT_SCORE_THRESHOLD "
-                       f"({RATE_LIMIT_SCORE_THRESHOLD}) -- no block or rate-limit signal, audit-only")
+            summary = (f"score {final_score:.3f} below mitigation gates "
+                       f"(quarantine {QUARANTINE_SCORE_THRESHOLD}, "
+                       f"rate-limit {RATE_LIMIT_SCORE_THRESHOLD}) -- "
+                       f"no block or rate-limit signal, audit-only")
         else:
             summary = "no action taken"
         try:

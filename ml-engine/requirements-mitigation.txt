@@ -1,7 +1,0 @@
-# Already needed by inference_service.py / orchestrator.py:
-#   redis, joblib, numpy, pandas, scikit-learn (or whatever your model_line1_*.pkl needs)
-#
-# Added for the mitigation layer:
-httpx>=0.27
-fastapi>=0.110
-uvicorn>=0.29

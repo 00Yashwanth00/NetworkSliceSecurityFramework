@@ -41,7 +41,9 @@ FUSION_TTL = 30
 # published as ATTACK, even if Line 1 did not escalate it or Line 2 did not
 # confirm it. It only ever promotes NORMAL -> ATTACK; an ATTACK from the model
 # is never demoted. Override without editing code:  ATTACK_SCORE_THRESHOLD=0.6
-ATTACK_SCORE_THRESHOLD = float(os.environ.get("ATTACK_SCORE_THRESHOLD", "0.5"))
+ATTACK_SCORE_THRESHOLD = float(os.environ.get("ATTACK_SCORE_THRESHOLD", "0.45"))
+
+asyncio.create_task(service.mitigation.keep_signature_registered(interval=3.0))
 
 
 class InferenceService:
@@ -294,10 +296,11 @@ async def main():
         logger.error("Make sure redis-server is running (sudo systemctl start redis-server)")
         sys.exit(1)
 
-    # Run tasks concurrently
+        # Run tasks concurrently
     tasks = [
         asyncio.create_task(service.run_network_scorer()),
-        asyncio.create_task(service.run_packet_scorer())
+        asyncio.create_task(service.run_packet_scorer()),
+        asyncio.create_task(service.mitigation.keep_signature_registered(interval=3.0)),
     ]
     
     logger.info("Inference service is now running. Waiting for telemetry...")

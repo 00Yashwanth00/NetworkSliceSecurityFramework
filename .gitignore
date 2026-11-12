@@ -1,194 +1,154 @@
-# ============================================================
-# NetworkSliceSecurityFramework - Root .gitignore
-# ============================================================
-
-# ------------------------------------------------------------
-# 1. Operating system and editor files
-# ------------------------------------------------------------
-.DS_Store
-Thumbs.db
-Desktop.ini
-*~
-*.swp
-*.swo
-*.bak
-.~lock.*#
-
-# ------------------------------------------------------------
-# 2. Git and IDE files
-# ------------------------------------------------------------
-# Local IDE settings
-.idea/
-.vscode/
-
-# ------------------------------------------------------------
-# 3. Python virtual environments
-# ------------------------------------------------------------
-.venv/
+# ==========================================
+# PYTHON - Virtual Environments
+# ==========================================
 venv/
+.venv/
 env/
 ENV/
-.python-version
-
-# ------------------------------------------------------------
-# 4. Python cache and generated files
-# ------------------------------------------------------------
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
 
-# Python packaging
-.Python
-pip-wheel-metadata/
+# Python build and packaging
+build/
+dist/
+*.egg-info/
+.eggs/
 wheels/
-share/python-wheels/
+pip-wheel-metadata/
 
-# Testing and linting caches
+# Python testing and coverage
 .pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.tox/
-.nox/
-.hypothesis/
 .coverage
 .coverage.*
 htmlcov/
+.tox/
+.nox/
+.hypothesis/
 
 # Jupyter
 .ipynb_checkpoints/
 
-# ------------------------------------------------------------
-# 5. Environment variables and secrets
-# ------------------------------------------------------------
-.env
-.env.*
-!.env.example
-!.env.*.example
-
-# Private keys and certificates
-*.pem
-*.key
-*.p12
-*.pfx
-*.jks
-*.keystore
-
-# Local credentials
-credentials.json
-secrets.json
-
-# ------------------------------------------------------------
-# 6. Logs, temporary files and runtime artifacts
-# ------------------------------------------------------------
-*.log
-*.tmp
-*.temp
-*.pid
-*.seed
-*.out
-
-# ------------------------------------------------------------
-# 7. Node.js / React dashboard
-# ------------------------------------------------------------
+# ==========================================
+# NODE.JS / REACT
+# ==========================================
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
+.npm/
+.nyc_output/
 
-# Frontend build output
-/attack-monitor-dashboard/build/
-/attack-monitor-dashboard/dist/
-/attack-monitor-dashboard/coverage/
-/attack-monitor-dashboard/.next/
+# Build outputs
+.next/
+.nuxt/
+dist/
+build/
+coverage/
 
-# Local environment files
-/attack-monitor-dashboard/.env
-/attack-monitor-dashboard/.env.local
-/attack-monitor-dashboard/.env.development.local
-/attack-monitor-dashboard/.env.test.local
-/attack-monitor-dashboard/.env.production.local
+# Environment files
+.env
+.env.*
+!.env.example
 
-# ------------------------------------------------------------
-# 8. Java / Maven data collector
-# ------------------------------------------------------------
-**/target/
-**/out/
+# ==========================================
+# JAVA / MAVEN
+# ==========================================
+target/
 *.class
+*.jar
+*.war
+*.ear
 
-# Maven wrapper cache and local build output
-.mvn/timing.properties
+# Maven wrapper cache
+.mvn/wrapper/maven-wrapper.jar
 
-# ------------------------------------------------------------
-# 9. Generated telemetry data
-# ------------------------------------------------------------
-# Collected CSV datasets
-/data-collector/collected-data/*.csv
+# ==========================================
+# IDE / EDITOR FILES
+# ==========================================
+.vscode/
+.idea/
+*.iml
+*.sublime-workspace
+*.swp
+*.swo
+*~
 
-# Temporary spreadsheet lock files
-/data-collector/collected-data/.~lock.*#
+# ==========================================
+# OPERATING SYSTEM FILES
+# ==========================================
+.DS_Store
+Thumbs.db
+desktop.ini
+.Trash-*
 
-# Collection metadata is retained by default.
-# Uncomment the following if it contains only generated metadata:
-# /data-collector/collected-data/collection_meta.json
+# ==========================================
+# LOGS AND TEMPORARY FILES
+# ==========================================
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+*.old
+*.orig
 
-# ------------------------------------------------------------
-# 10. Packet collector datasets
-# ------------------------------------------------------------
-# Generated packet/flow datasets
-/packet-collector/*.csv
+# ==========================================
+# CACHE FILES
+# ==========================================
+.cache/
+.pyre/
+.mypy_cache/
+.ruff_cache/
 
-# Packet captures
-/packet-collector/*.pcap
-/packet-collector/*.pcapng
-/packet-collector/pcaps/
+# ==========================================
+# DATABASE / LOCAL RUNTIME FILES
+# ==========================================
+*.sqlite
+*.sqlite3
+*.db
 
-# ------------------------------------------------------------
-# 11. Processed machine-learning datasets
-# ------------------------------------------------------------
-/ml-engine/processed_line1_network/*.csv
-/ml-engine/processed_line1_packet/*.csv
-/ml-engine/processed_line2_network/*.csv
-/ml-engine/processed_line2_packet/*.csv
+# ==========================================
+# GENERATED DATA / EXPORTS
+# ==========================================
+*.parquet
+*.feather
 
-# ------------------------------------------------------------
-# 12. Generated model training artifacts
-# ------------------------------------------------------------
-# Training logs and evaluation reports
-/ml-engine/model_line1_network/training_results.json
-/ml-engine/model_line1_packet/training_results.json
-/ml-engine/model_line2_network/training_results.json
-/ml-engine/model_line2_packet/training_results.json
-
-# ------------------------------------------------------------
-# 13. Generated reports
-# ------------------------------------------------------------
-reports/
-report/
-*.report
-*.junit.xml
-
-# ------------------------------------------------------------
-# 14. Archives and compressed backups
-# ------------------------------------------------------------
+# ==========================================
+# ARCHIVE FILES
+# ==========================================
 *.zip
 *.tar
 *.tar.gz
-*.tgz
-*.7z
 *.rar
+*.7z
 
-# ------------------------------------------------------------
-# 15. Build output and dependency directories
-# ------------------------------------------------------------
-**/node_modules/
-**/__pycache__/
-**/.pytest_cache/
-**/.mypy_cache/
-**/.ruff_cache/
-**/htmlcov/
 
-# ------------------------------------------------------------
-# End of .gitignore
-# ------------------------------------------------------------
+#===========================================
+#Attack Dashboard
+#===========================================
+node_modules/
+public/
+*.md
 
+#===========================================
+#data-collector
+#===========================================
+target/
+
+#===========================================
+#ml engine
+#===========================================
+ml-engine/*
+!ml-engine/inference_service.py
+!ml-engine/mitigation.py
+!ml-engine/mitigation_dashboard.py
+!ml-engine/orchestrate.py
+!ml-engine/tail_verdicts.py
+
+#===========================================
+#packet-collector
+#===========================================
+packet-collector/
+!packet-collector/packet_collector_live.py

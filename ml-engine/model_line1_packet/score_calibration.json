@@ -1,7 +1,0 @@
-{
-  "score_min": 0.3573898782709331,
-  "score_max": 0.6926145218378221,
-  "p90_normal_boundary": 0.4988135350980629,
-  "contamination": 0.05,
-  "note": "Raw score = -clf.score_samples(x); higher = more anomalous. Orchestrator normalizes with (raw - score_min) / (score_max - score_min), clipped to [0, 1]. Below p90_normal_boundary (raw scale) = confidently normal -> Line 2 not invoked."
-}
