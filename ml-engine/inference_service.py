@@ -14,6 +14,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sys
 import time
 from typing import Optional
@@ -43,7 +44,10 @@ FUSION_TTL = 30
 # is never demoted. Override without editing code:  ATTACK_SCORE_THRESHOLD=0.6
 ATTACK_SCORE_THRESHOLD = float(os.environ.get("ATTACK_SCORE_THRESHOLD", "0.45"))
 
-asyncio.create_task(service.mitigation.keep_signature_registered(interval=3.0))
+# How long (seconds) the last packet-level src_ip seen for a session may be
+# reused when a verdict has no fresh packet data. Lets mitigation still act
+# on strong attacks whose packet sample has already expired.
+SRC_IP_FALLBACK_TTL = 120
 
 
 class InferenceService:
@@ -51,6 +55,8 @@ class InferenceService:
         self.orch = orchestrator
         self.r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
         self.mitigation = MitigationEngine(redis_client=self.r)
+        # session_key -> (src_ip, monotonic timestamp) of the last packet seen
+        self._last_src_ip = {}
 
     async def flush_on_startup(self):
         """Wipe all pipeline-owned keys so this session starts with a clean slate."""
@@ -143,7 +149,12 @@ class InferenceService:
             
             # Use src_ip as session_key, or fallback to default
             session_key = sample.get("session_key", "default_session")
-            
+
+            # Remember the last real source IP for this session (see fallback in _run_fusion)
+            ip = sample.get("src_ip")
+            if ip:
+                self._last_src_ip[session_key] = (str(ip), time.monotonic())
+
             cache_key = f"fusion:{session_key}:pkt"
             await self._cache_result(cache_key, result, sample)
 
@@ -204,9 +215,13 @@ class InferenceService:
             src_ip = str(pkt_sample.get("src_ip", "") or "")
         if not src_ip and session_key != "default_session":
             # session_key may be an IP if injected by the collector
-            import re
             if re.match(r'^\d{1,3}(\.\d{1,3}){3}$', session_key):
                 src_ip = session_key
+        if not src_ip:
+            cached = self._last_src_ip.get(session_key)
+            if cached and time.monotonic() - cached[1] <= SRC_IP_FALLBACK_TTL:
+                src_ip = cached[0]
+                details["src_ip_source"] = "last seen packet src_ip (fallback)"
 
         # Publish Verdict
         payload = {
@@ -227,11 +242,10 @@ class InferenceService:
         override = " [score-threshold override]" if "verdict_override" in details else ""
         logger.info(f"Published verdict for {session_key}: {verdict}{override} (Score: {final_score:.3f}, src_ip={src_ip!r})")
 
-        # Fire mitigation strategies (no-op for verdict == "NORMAL"). Every
-        # call inside is best-effort -- a failure here never raises back
-        # into the fusion loop, and every outcome (applied or
-        # recommendation-only) lands in the mitigation:events Redis stream
-        # for mitigation_dashboard.py.
+        # Fire mitigation strategies (no-op for verdict == "NORMAL"). Every call
+        # inside is best-effort -- a failure here never raises back into the
+        # fusion loop, and every outcome (applied or recommendation-only) lands
+        # in the mitigation:events Redis stream for mitigation_dashboard.py.
         try:
             outcomes = await self.mitigation.handle_verdict(payload)
             for o in outcomes:
@@ -296,13 +310,15 @@ async def main():
         logger.error("Make sure redis-server is running (sudo systemctl start redis-server)")
         sys.exit(1)
 
-        # Run tasks concurrently
+    # Run tasks concurrently
     tasks = [
         asyncio.create_task(service.run_network_scorer()),
         asyncio.create_task(service.run_packet_scorer()),
+        # Restores the ML_PIPELINE_ATTACK IDS signature in mmt-core within
+        # seconds if the SA Tester's drop-db-data wipes it.
         asyncio.create_task(service.mitigation.keep_signature_registered(interval=3.0)),
     ]
-    
+
     logger.info("Inference service is now running. Waiting for telemetry...")
     try:
         await asyncio.gather(*tasks)
